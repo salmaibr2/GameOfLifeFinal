@@ -1,6 +1,5 @@
 """Configuration management for Game of Life."""
 from pathlib import Path
-from typing import Optional
 import platformdirs
 
 
@@ -105,22 +104,28 @@ class RankConfig:
         self.name = name
         self.xp_min = xp_min
 
+def get_rank_for_xp(self, xp):
+    """Get rank based on XP."""
+    for rank in reversed(self.ranks):
+        if xp >= rank.xp_min:
+            return rank.name
+    return self.ranks[0].name
 
 class Config:
     """Main application configuration."""
     
-    def __init__(self, xp_per_level=100, ranks=None, xp_config=None, db_path=None):
+    def __init__(self, xp_per_level=200, ranks=None, xp_config=None, db_path=None):
         self.xp_per_level = xp_per_level
         
         if ranks is None:
             self.ranks = [
                 RankConfig("Procrastinator", 0),
-                RankConfig("Dabbler", 100),
-                RankConfig("Doer", 300),
-                RankConfig("Achiever", 600),
-                RankConfig("Champion", 1000),
-                RankConfig("Master", 1500),
-                RankConfig("Legend", 2500)
+                RankConfig("Dabbler", 200),
+                RankConfig("Doer", 600),
+                RankConfig("Achiever", 1200),
+                RankConfig("Champion", 2000),
+                RankConfig("Master", 3000),
+                RankConfig("Legend", 5000)
             ]
         else:
             self.ranks = ranks
