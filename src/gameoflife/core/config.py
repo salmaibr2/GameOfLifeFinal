@@ -143,7 +143,5 @@ class Config:
             self.db_path = db_path
 
 
-
-
 # Global configuration instance
 config = Config()
