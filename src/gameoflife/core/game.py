@@ -1,5 +1,6 @@
 import datetime
 from config import *
+import database #used for add_task method and complete_tasks
 
 class User:
     def __init__(self, username, email):
@@ -67,6 +68,7 @@ class RankUpAchievement(Achievement):
 
 class Player:
     def __init__(self, user, xp=0, level=1):
+        self.id = None
         self.user = user
         self.xp = xp
         self.level = level
@@ -74,7 +76,15 @@ class Player:
         self.tasks_completed = 0
         self.current_streak = 0
         self.longest_streak = 0
-        
+        #below are added after clone repo
+        self.tasks_failed = 0
+        self.previous_rank = None
+        self.tasks_completed_early = 0
+        self.critical_tasks_completed = 0
+
+
+
+
     def add_xp(self, amount):
         """Add XP and check for level up."""
         self.xp = max(config.xp_config.xp_floor, self.xp + amount)
@@ -164,15 +174,21 @@ class XPCalculator:
 class TaskManager:
     """Manages tasks and coordinates game mechanics."""
     
-    def __init__(self, player, xp_calculator=None):
+    def __init__(self, player,user_id, player_id, xp_calculator=None):
         self.player = player
+        self.user_id = user_id
+        self.player_id = player_id
         self.xp_calculator = xp_calculator or XPCalculator(config.xp_config)
         self.active_tasks = []
         self.completed_tasks = []
         self.failed_tasks = []
-    
+
     def add_task(self, task):
         """Add a new task."""
+        #in this defined function we need to give it the ability to save to DB
+        task_id = database.insert_task(task, self.user_id)  #used to save to database
+        task.id = task_id  #used to save the users id
+
         task.created_at = datetime.datetime.now()
         self.active_tasks.append(task)
         return task
@@ -184,6 +200,9 @@ class TaskManager:
         
         task.mark_completed()
         task.completed_at = datetime.datetime.now()
+
+        #used to update the database
+        database.update_task_status(task.id, TaskStatus.COMPLETED, task.completed_at)
         
         # Calculate XP
         xp_earned = self.xp_calculator.calculate_completion_xp(task, task.completed_at)
@@ -194,7 +213,7 @@ class TaskManager:
         self.player.current_streak += 1
         
         # Track early completion
-        if task.priority == TaskPriority.CRITICAL:
+        if task.priority == TaskPriority.CRITICAL: #TaskPriority from config.py
             self.player.critical_tasks_completed += 1
         
         # Move task to completed
@@ -213,6 +232,15 @@ class TaskManager:
                 self.player.award_achievement(RankUpAchievement(current_rank))
                 new_achievements.append(RankUpAchievement(current_rank))
             self.player.previous_rank = current_rank
+
+        #used at the end of the block to save all players stats
+        database.update_player_stats(
+            self.player_id, self.player.xp, self.player.level,
+            self.player.tasks_completed, self.player.tasks_failed,
+            self.player.current_streak, self.player.longest_streak,
+            self.player.tasks_completed_early, self.player.critical_tasks_completed,
+            self.player.previous_rank
+            )
         
         return {
             'xp_earned': xp_earned,
