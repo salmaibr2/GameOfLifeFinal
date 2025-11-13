@@ -35,6 +35,8 @@ class Task:
     
     def __init__(self, title, priority=TaskPriority.MEDIUM, status=TaskStatus.PENDING, 
                  due_date=None, description=""):
+    
+        self.id = id
         self.title = title
         self.priority = priority
         self.status = status
