@@ -23,8 +23,7 @@ class Task:
     #We have set taskpriority set to medium and taskstatus set to pending for this class as default parameter values
     def __init__(self, title, priority=TaskPriority.MEDIUM, status=TaskStatus.PENDING,
                  due_date=None, description=""):
-    
-        self.id = id
+        self.id = None
         self.title = title
         self.priority = priority
         self.status = status
@@ -102,7 +101,6 @@ class Config:
             self.db_path = data_dir / "gamelife.db"
         else:
             self.db_path = db_path
-
 
 # Global configuration instance
 config = Config()
