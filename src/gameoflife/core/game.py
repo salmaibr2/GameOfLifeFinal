@@ -4,23 +4,36 @@ import database #used for add_task method and complete_tasks
 
 class User:
     def __init__(self, username, email):
+        #initialize the users profile data
         self.username = username
         self.email = email
+        #automatically sets the creation time stamp to current date and time
         self.created_at = datetime.datetime.now()
 
     def __repr__(self):
+        #we have our object, this just provides a string representation of it
+        #if you print user object this is what appears
         return f"User(username={self.username}, email={self.email}, created_at={self.created_at})"
 
+
 class Achievement:
-    def __init__(self, name: str, description: str, date_earned: datetime.date, xp_reward: int=0):
+    def __init__(self, name: str, description: str, date_earned: datetime.date, xp_reward: int = 0):
+
         self.name = name
-        self.description = description
+        self.description = description #sets our string parameter 'description' that you will see later on in the code
         self.date_earned = date_earned
-        self.xp_reward = xp_reward  # Default XP reward
+        self.xp_reward = xp_reward  #default XP reward, default to 0 if it isn't specified
+
     def __repr__(self):
-        return f"Achievement(name={self.name}, description={self.description}, date_earned={self.date_earned})"     
-    
+        #readable summary of achievemnt stuff
+        #these __repr__ are optional but used inside of the jupyter notebooks from lecture -> good for debugging
+        return f"Achievement(name={self.name}, description={self.description}, date_earned={self.date_earned})"
+
+
 class FirstTaskCompleted(Achievement):
+    #sepcific class used only for a first achievement
+    #used to output reward text after first achievement. intended to keep users engaged so they dont have to complete 10 tasks to get a nice message
+    #note it inherits the parameters from the Achievement super class
     def __init__(self):
         super().__init__(
             name="First Task Completed",
@@ -29,7 +42,10 @@ class FirstTaskCompleted(Achievement):
             xp_reward=25
         )
 
+
 class EarlyBirdAchievement(Achievement):
+    #same idea as previous class, used when you complete 10 tasks early
+    #note it inherits the parameters from the Achievement super class
     def __init__(self):
         super().__init__(
             name="Early Bird",
@@ -38,24 +54,8 @@ class EarlyBirdAchievement(Achievement):
             xp_reward=50
         )
 
-class TaskStreakAchievement(Achievement):
-    def __init__(self, streak_length: int):
-        super().__init__(
-            name=f"Task Streak {streak_length}",
-            description=f"Awarded for completing {streak_length} tasks in a row.",
-            date_earned=datetime.date.today(),
-            xp_reward=streak_length * 10
-        )
-        self.early_bonus_thresholds = {
-                TaskPriority.LOW: 2,
-                TaskPriority.MEDIUM: 4,
-                TaskPriority.HIGH: 6,
-                TaskPriority.CRITICAL: 8
-            }
 
 class RankUpAchievement(Achievement):
-    """Achievement for reaching a new rank."""
-    
     def __init__(self, rank_name: str):
         super().__init__(
             name=f"Rank Up: {rank_name}",
@@ -86,89 +86,57 @@ class Player:
 
 
     def add_xp(self, amount):
-        """Add XP and check for level up."""
         self.xp = max(config.xp_config.xp_floor, self.xp + amount)
         self._check_level_up()
-    
+
     def _check_level_up(self):
-        """Check if player leveled up."""
         new_level = (self.xp // config.xp_per_level) + 1
         if new_level > self.level:
             self.level = new_level
             return True
         return False
-    
+
     def get_rank(self):
-        """Get current rank based on XP."""
         for rank in reversed(config.ranks):
             if self.xp >= rank.xp_min:
                 return rank.name
         return config.ranks[0].name
-    
+
     def get_progress_to_next_level(self):
-        """Get progress percentage to next level."""
         xp_into_current_level = self.xp % config.xp_per_level
         return (xp_into_current_level / config.xp_per_level) * 100
-    
+
     def award_achievement(self, achievement):
-        """Award an achievement to the player."""
         self.achievements.append(achievement)
         if hasattr(achievement, 'xp_reward'):
             self.add_xp(achievement.xp_reward)
 
-    def get_stats(self):
-        """Get player statistics."""
-        total_tasks = self.tasks_completed + self.tasks_failed
-        completion_rate = (self.tasks_completed / total_tasks * 100) if total_tasks > 0 else 0
-        
-        return {
-            'username': self.user.username,
-            'level': self.level,
-            'xp': self.xp,
-            'rank': self.get_rank(),
-            'progress_to_next_level': self.get_progress_to_next_level(),
-            'tasks_completed': self.tasks_completed,
-            'tasks_failed': self.tasks_failed,
-            'completion_rate': completion_rate,
-            'current_streak': self.current_streak,
-            'longest_streak': self.longest_streak,
-            'achievements_earned': len(self.achievements)
-        }
+
 class XPCalculator:
-    """Handles XP calculations for tasks."""
-    
+
     def __init__(self, xp_config):
         self.config = xp_config
-    
+
     def calculate_completion_xp(self, task, completion_time=None):
-        """Calculate XP for completing a task."""
         base_xp = self.config.base_rewards[task.priority]
-        
+
         if task.due_date and completion_time:
             bonus = self._calculate_early_bonus(task.due_date, completion_time, base_xp)
             return base_xp + bonus
-        
+
         return base_xp
-    
+
     def calculate_failure_penalty(self, task):
-        """Calculate XP penalty for failing/missing a task."""
         return self.config.base_penalties[task.priority]
-    
+
     def _calculate_early_bonus(self, due_date, completion_time, base_xp):
-        """Calculate bonus for early completion."""
         time_early = due_date - completion_time
-        
+
         for threshold in self.config.early_bonus_thresholds:
             if 'days_early' in threshold and time_early.days >= threshold['days_early']:
                 return int(base_xp * threshold['bonus_pct'] / 100)
-        
+
         return 0
-    
-    def was_completed_early(self, task, completion_time):
-        """Check if task was completed early."""
-        if not task.due_date or not completion_time:
-            return False
-        return completion_time < task.due_date
 
 
 class TaskManager:
@@ -192,12 +160,11 @@ class TaskManager:
         task.created_at = datetime.datetime.now()
         self.active_tasks.append(task)
         return task
-    
+
     def complete_task(self, task):
-        """Complete a task and award XP."""
         if task not in self.active_tasks:
             raise ValueError("Task not found in active tasks")
-        
+
         task.mark_completed()
         task.completed_at = datetime.datetime.now()
 
@@ -207,22 +174,22 @@ class TaskManager:
         # Calculate XP
         xp_earned = self.xp_calculator.calculate_completion_xp(task, task.completed_at)
         xp_result = self.player.add_xp(xp_earned)
-        
+
         # Update player stats
         self.player.tasks_completed += 1
         self.player.current_streak += 1
-        
+
         # Track early completion
         if task.priority == TaskPriority.CRITICAL: #TaskPriority from config.py
             self.player.critical_tasks_completed += 1
-        
+
         # Move task to completed
         self.active_tasks.remove(task)
         self.completed_tasks.append(task)
-        
+
         # Check for achievements
         new_achievements = self._check_achievements()
-        
+
         # Check for rank up
         current_rank = self.player.get_rank()
         rank_changed = False
@@ -249,60 +216,29 @@ class TaskManager:
             'rank_changed': rank_changed,
             'new_rank': current_rank if rank_changed else None
         }
-    
-    def fail_task(self, task):
-        """Mark task as failed and apply penalty."""
-        if task not in self.active_tasks:
-            raise ValueError("Task not found in active tasks")
-        
-        task.mark_failed()
-        
-        # Calculate and apply penalty
-        penalty = self.xp_calculator.calculate_failure_penalty(task)
-        xp_result = self.player.add_xp(-penalty)
-        
-        # Update player stats
-        self.player.tasks_failed += 1
-        self.player.current_streak = 0
-        
-        # Move task to failed
-        self.active_tasks.remove(task)
-        self.failed_tasks.append(task)
-        
-        return {
-            'xp_lost': penalty,
-            'xp_result': xp_result
-        }
+
     def _check_achievements(self):
-        """Check and award achievements."""
         new_achievements = []
-        
-        # First task
+
+        #This is the first task achievement
         if self.player.tasks_completed == 1:
             achievement = FirstTaskCompleted()
             if self.player.award_achievement(achievement):
                 new_achievements.append(achievement)
-        
-        # Streak achievements
-        if self.player.current_streak in [5, 10, 25, 50, 100]:
-            achievement = TaskStreakAchievement(self.player.current_streak)
-            if self.player.award_achievement(achievement):
-                new_achievements.append(achievement)
-        
-        # Early bird achievement
+
+        #The early bird achievement
         if self.player.tasks_completed_early == 10:
             achievement = EarlyBirdAchievement()
             if self.player.award_achievement(achievement):
                 new_achievements.append(achievement)
-        
-        # Update longest streak
+
+        #To update longest streak
         if self.player.current_streak > self.player.longest_streak:
             self.player.longest_streak = self.player.current_streak
-        
+
         return new_achievements
-    
+
     def get_active_tasks(self, sort_by='priority'):
-        """Get active tasks sorted by specified criteria."""
         if sort_by == 'priority':
             priority_order = {
                 TaskPriority.CRITICAL: 0,
@@ -315,15 +251,3 @@ class TaskManager:
             return sorted(self.active_tasks, key=lambda t: t.due_date if t.due_date else datetime.datetime.max)
         else:
             return self.active_tasks
-    
-    def check_overdue_tasks(self):
-        """Check for overdue tasks and mark them."""
-        now = datetime.datetime.now()
-        overdue_count = 0
-        
-        for task in self.active_tasks:
-            if task.due_date and now > task.due_date and task.status != TaskStatus.OVERDUE:
-                task.status = TaskStatus.OVERDUE
-                overdue_count += 1
-        
-        return overdue_count
