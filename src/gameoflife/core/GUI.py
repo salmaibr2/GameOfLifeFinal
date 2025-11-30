@@ -379,17 +379,116 @@ class AddTaskPage(tk.Frame):
         self.canvas.draw()
 
 
+# class CalendarPage(tk.Frame):
+#     def __init__(self, parent, app: App):
+#         super().__init__(parent, bg=BG)
+#         self.app = app
+#         app.make_label(self, "CALENDAR (COMING SOON)", font=app.font_lg).pack(pady=(24, 12))
+#         app.make_label(
+#             self,
+#             "This page will show a calendar view and scheduled tasks.",
+#             font=app.font_sm,
+#         ).pack(pady=6)
+#         app.make_button(self, "BACK TO MENU", lambda: app.show("MenuPage")).pack(pady=
+
+# --- ADD THIS IMPORT AT THE TOP OF GUI.PY ---
+from tkcalendar import Calendar
+
+
 class CalendarPage(tk.Frame):
     def __init__(self, parent, app: App):
         super().__init__(parent, bg=BG)
         self.app = app
-        app.make_label(self, "CALENDAR (COMING SOON)", font=app.font_lg).pack(pady=(24, 12))
-        app.make_label(
+
+        # 1. Header
+        app.make_label(self, "CALENDAR & SCHEDULE", font=app.font_lg).pack(pady=(20, 10))
+
+        # 2. The Calendar Widget
+        # CRITICAL FIX: date_pattern='yyyy-mm-dd' prevents the "jumping month" bug
+        # and ensures standard string comparison for tasks.
+        self.cal = Calendar(
             self,
-            "This page will show a calendar view and scheduled tasks.",
-            font=app.font_sm,
-        ).pack(pady=6)
-        app.make_button(self, "BACK TO MENU", lambda: app.show("MenuPage")).pack(pady=16)
+            selectmode='day',
+            date_pattern='yyyy-mm-dd',  # <--- THIS FIXES THE GLITCH
+            background=BG,
+            foreground=FG,
+            headersbackground=SUBTLE,
+            headersforeground=FG,
+            bordercolor=SUBTLE,
+            normalbackground=BG,
+            normalforeground="white",
+            weekendbackground=BG,
+            weekendforeground="white",
+            selectbackground=ACCENT,
+            selectforeground='white',
+            cursor="hand2"
+        )
+        self.cal.pack(pady=10, padx=20, fill="both", expand=True)
+
+        # Bind the "Click" event
+        self.cal.bind("<<CalendarSelected>>", self._on_day_selected)
+
+        # 3. Task Details Section
+        details_frame = tk.Frame(self, bg=BG)
+        details_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        app.make_label(details_frame, "TASKS FOR SELECTED DATE:", font=app.font_sm).pack(anchor="w")
+
+        self.details_list = tk.Listbox(details_frame, bg=SUBTLE, fg=FG, height=5, font=("Consolas", 10), relief="flat")
+        self.details_list.pack(fill="x", pady=5)
+
+        app.make_button(self, "BACK TO MENU", lambda: app.show("MenuPage")).pack(pady=10)
+
+    def on_show(self):
+        """Refreshes events (dots) whenever the page is opened."""
+        self.cal.calevent_remove("all")  # Clear old dots
+
+        if self.app.task_manager:
+            for task in self.app.task_manager.active_tasks:
+                if task.due_date:
+                    # We strip the time and keep only the date component
+                    # task.due_date is a datetime object, so we need .date()
+                    d_date = task.due_date.date()
+
+                    self.cal.calevent_create(
+                        d_date,
+                        "Task Due",
+                        "task_due"
+                    )
+
+        # Color the dots GREEN
+        self.cal.tag_config("task_due", background=ACCENT, foreground='white')
+
+        # Trigger the selection logic immediately for the current day
+        # so the list isn't empty when you first open the page
+        self._on_day_selected(None)
+
+    def _on_day_selected(self, event):
+        """Updates the listbox when a day is clicked."""
+        self.details_list.delete(0, tk.END)
+
+        # Get the selected date as a string (Format: YYYY-MM-DD)
+        selected_date_str = self.cal.get_date()
+
+        found_any = False
+        if self.app.task_manager:
+            for task in self.app.task_manager.active_tasks:
+                if task.due_date:
+                    # Convert the task's datetime object to the same string format
+                    task_date_str = task.due_date.strftime("%Y-%m-%d")
+
+                    # Compare strings
+                    if task_date_str == selected_date_str:
+                        # Add to list
+                        self.details_list.insert(tk.END, f"• {task.title} ({task.priority.upper()})")
+                        found_any = True
+
+        if not found_any:
+            self.details_list.insert(tk.END, "(No tasks due on this day)")
+
+
+
+
 
 
 class ProgressBar(tk.Frame):
